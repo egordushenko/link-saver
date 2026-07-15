@@ -15,7 +15,7 @@ export function App() {
   const [deleteTarget, setDeleteTarget] = useState<Link | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [favoriteFilter, setFavoriteFilter] = useState(false);
-  const [updatingFavoriteId, setUpdatingFavoriteId] = useState<string | null>(null);
+  const [updatingFavoriteIds, setUpdatingFavoriteIds] = useState<Set<string>>(() => new Set());
   const [actionError, setActionError] = useState('');
 
   const favoriteCount = links.filter((link) => link.isFavorite).length;
@@ -70,7 +70,7 @@ export function App() {
   async function toggleFavorite(link: Link) {
     const nextFavorite = !link.isFavorite;
     setActionError('');
-    setUpdatingFavoriteId(link.id);
+    setUpdatingFavoriteIds((current) => new Set(current).add(link.id));
     setLinks((current) => current.map((item) => (
       item.id === link.id ? { ...item, isFavorite: nextFavorite } : item
     )));
@@ -81,7 +81,11 @@ export function App() {
       setLinks((current) => current.map((item) => (item.id === link.id ? link : item)));
       setActionError(error instanceof Error ? error.message : 'Favourite could not be updated.');
     } finally {
-      setUpdatingFavoriteId(null);
+      setUpdatingFavoriteIds((current) => {
+        const next = new Set(current);
+        next.delete(link.id);
+        return next;
+      });
     }
   }
 
@@ -170,7 +174,7 @@ export function App() {
           <ul className="link-list">
             {visibleLinks.map((link) => (
               <LinkItem
-                isUpdatingFavorite={updatingFavoriteId === link.id}
+                isUpdatingFavorite={updatingFavoriteIds.has(link.id)}
                 key={link.id}
                 link={link}
                 onDelete={setDeleteTarget}

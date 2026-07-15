@@ -46,7 +46,7 @@ I chose React + Vite for a small, expressive UI and Express + SQLite for a backe
 | --- | --- |
 | `src/client` | React interface, local interaction state, API client, responsive styling |
 | `src/server/url-policy.ts` | URL normalization, DNS resolution, private/reserved address rejection |
-| `src/server/metadata.ts` | Manual redirects, bounded HTML fetch, title extraction and fallback |
+| `src/server/metadata.ts` | DNS-pinned HTTP(S), manual redirects, bounded HTML reads, title extraction and fallback |
 | `src/server/link-repository.ts` | SQLite schema and prepared CRUD statements |
 | `src/server/app.ts` | Express API, validation, status codes and safe error responses |
 | `src/shared/link.ts` | Client/server wire types |
@@ -60,7 +60,7 @@ I chose React + Vite for a small, expressive UI and Express + SQLite for a backe
 | `PATCH` | `/api/links/:id/favorite` | Set favourite state |
 | `DELETE` | `/api/links/:id` | Delete a saved link |
 
-Expected failures use stable JSON errors: `400` invalid input, `404` missing record, `409` duplicate URL, and `422` page metadata unavailable. Unexpected details are not disclosed to the client.
+Expected failures use stable JSON errors: `400` invalid input, `404` missing record, `409` duplicate URL, `413` oversized body, and `422` page metadata unavailable. Unexpected details are not disclosed to the client.
 
 ## Favourite feature change
 
@@ -75,6 +75,8 @@ The base save/list/delete flow was committed first. The follow-up favourite feat
 
 The dedicated commit is `feat: add favourite filtering`.
 
+These are the favourite-related files because the feature crosses each application boundary: `App.tsx` owns the filter and optimistic interaction state, `api.ts` carries the mutation, `LinkItem.tsx` exposes the accessible control, `styles.css` presents its states, the server files persist and query the flag, and `App.test.tsx` protects the user flow. Keeping those responsibilities separate avoids hiding persistence or API work inside a UI-only change.
+
 ## Tests and quality checks
 
 ```bash
@@ -86,15 +88,15 @@ npm run build
 npm run check
 ```
 
-Vitest covers URL policy, bounded metadata fetching, SQLite persistence, API behaviour, and React interactions. Supertest exercises the API without a network listener; React Testing Library verifies the user-visible flows. GitHub Actions runs the full check on every push and pull request to `main`.
+Vitest covers URL policy, DNS-pinned and bounded metadata fetching, SQLite persistence, API behaviour, and React interactions. Supertest exercises the API without a network listener; React Testing Library verifies the user-visible flows. GitHub Actions runs the full check on every push and pull request to `main` across Node 20.19, 22.12, and 24.
 
 ## Security boundary and assumptions
 
-- The app is local and single-user; there is no authentication or authorization layer.
+- The app is local and single-user; the server binds only to `127.0.0.1`, rejects non-loopback `Host` headers to prevent browser DNS rebinding, and has no authentication or authorization layer.
 - Only HTTP/HTTPS URLs without embedded credentials are accepted.
-- Every destination and redirect is resolved and checked against private, loopback, link-local, multicast, and reserved ranges before fetch.
+- Every destination and redirect is resolved and checked against private, loopback, link-local, multicast, and reserved ranges; the validated IP is pinned into the connection while the original hostname is retained for Host and TLS SNI.
 - HTML downloads are limited to 1 MB, three redirects, and eight seconds.
-- The fetch boundary is appropriate for this exercise, but a production multi-tenant service should pin the validated IP in its HTTP dispatcher to close the remaining DNS-rebinding window and add rate limiting.
+- A network-exposed or multi-tenant version would still require authentication, authorization, rate limiting, egress controls, and operational monitoring.
 - Duplicate identity is the normalized URL with its fragment removed; query strings remain meaningful.
 
 ## Part B: existing-code review
@@ -113,7 +115,7 @@ I used AI as an implementation and review tool, while making the scope, architec
 
 ## What I would improve with more time
 
-- Pin validated DNS results through a custom HTTP dispatcher and add request rate limits.
+- Add authentication, request rate limits, and network-level egress policy before any shared deployment.
 - Add Playwright browser tests and automated accessibility checks.
 - Introduce versioned database migrations before the schema grows.
 - Add search/tags only after observing a real collection large enough to need them.
@@ -131,4 +133,3 @@ I would have asked whether metadata failures should prevent saving or fall back 
 ![Link Saver mobile interface](docs/assets/link-saver-mobile.png)
 
 </details>
-

@@ -114,6 +114,25 @@ describe('App core link flow', () => {
     expect(fetchMock).toHaveBeenLastCalledWith('/api/links/link-1', { method: 'DELETE' });
   });
 
+  it('manages keyboard focus while confirming deletion', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ links: [savedLink] })));
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole('link', { name: 'Example article' });
+
+    const deleteButton = screen.getByRole('button', { name: 'Delete Example article' });
+    await user.click(deleteButton);
+    expect(screen.getByRole('button', { name: 'Keep it' })).toHaveFocus();
+    await user.tab({ shift: true });
+    expect(screen.getByRole('button', { name: 'Delete link' })).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Keep it' })).toHaveFocus();
+
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(deleteButton).toHaveFocus();
+  });
+
   it('marks a link as a favourite', async () => {
     const fetchMock = vi
       .fn()
@@ -152,5 +171,31 @@ describe('App core link flow', () => {
     await user.click(screen.getByRole('button', { name: 'Remove Example article from favourites' }));
 
     expect(await screen.findByText('Nothing starred here—yet.')).toBeInTheDocument();
+  });
+
+  it('keeps every in-flight favourite action disabled independently', async () => {
+    let resolveFirst!: (response: Response) => void;
+    let resolveSecond!: (response: Response) => void;
+    const firstUpdate = new Promise<Response>((resolve) => { resolveFirst = resolve; });
+    const secondUpdate = new Promise<Response>((resolve) => { resolveSecond = resolve; });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ links: [savedLink, secondLink] }))
+      .mockReturnValueOnce(firstUpdate)
+      .mockReturnValueOnce(secondUpdate);
+    vi.stubGlobal('fetch', fetchMock);
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole('link', { name: 'MDN Web Docs' });
+
+    await user.click(screen.getByRole('button', { name: 'Add Example article to favourites' }));
+    await user.click(screen.getByRole('button', { name: 'Add MDN Web Docs to favourites' }));
+
+    expect(screen.getByRole('button', { name: 'Remove Example article from favourites' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Remove MDN Web Docs from favourites' })).toBeDisabled();
+
+    resolveFirst(jsonResponse({ link: favoriteLink }));
+    resolveSecond(jsonResponse({ link: { ...secondLink, isFavorite: true } }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
   });
 });

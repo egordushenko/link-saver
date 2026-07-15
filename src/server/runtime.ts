@@ -9,3 +9,6 @@ export function findClientDist(
   return pathExists(join(clientDist, 'index.html')) ? clientDist : undefined;
 }
 
+export function getServerHost(): string {
+  return '127.0.0.1';
+}

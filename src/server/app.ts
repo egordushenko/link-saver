@@ -32,9 +32,32 @@ function isMalformedJson(error: unknown): boolean {
     && error.status === 400;
 }
 
+function isBodyTooLarge(error: unknown): boolean {
+  return typeof error === 'object'
+    && error !== null
+    && 'status' in error
+    && error.status === 413;
+}
+
+function isAllowedHost(hostHeader: string | undefined): boolean {
+  if (!hostHeader) return false;
+  try {
+    const hostname = new URL(`http://${hostHeader}`).hostname.replace(/^\[|\]$/g, '').toLowerCase();
+    return ['localhost', '127.0.0.1', '::1'].includes(hostname);
+  } catch {
+    return false;
+  }
+}
+
 export function createApp({ clientDist, fetchMetadata, repository }: AppDependencies) {
   const app = express();
   app.disable('x-powered-by');
+  app.use((request, _response, next) => {
+    if (!isAllowedHost(request.headers.host)) {
+      httpError(403, 'HOST_NOT_ALLOWED', 'This local service only accepts loopback hostnames.');
+    }
+    next();
+  });
   app.use(express.json({ limit: '10kb' }));
 
   app.get('/api/links', (_request, response) => {
@@ -109,7 +132,9 @@ export function createApp({ clientDist, fetchMetadata, repository }: AppDependen
   const errorHandler: ErrorRequestHandler = (error, _request, response, _next) => {
     const knownError = error instanceof HttpError
       ? error
-      : isMalformedJson(error)
+      : isBodyTooLarge(error)
+        ? new HttpError(413, 'PAYLOAD_TOO_LARGE', 'The request body is too large.')
+        : isMalformedJson(error)
         ? new HttpError(400, 'INVALID_JSON', 'The request body must be valid JSON.')
         : new HttpError(500, 'INTERNAL_ERROR', 'Something went wrong on the server.');
     const body: ApiErrorResponse = {

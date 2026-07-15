@@ -1,7 +1,7 @@
 import { lookup as dnsLookup } from 'node:dns/promises';
 import { BlockList, isIP } from 'node:net';
 
-type LookupAddress = { address: string; family: number };
+export type LookupAddress = { address: string; family: number };
 export type LookupAll = (
   hostname: string,
   options: { all: true; verbatim: true },
@@ -81,7 +81,7 @@ export function isDisallowedAddress(address: string): boolean {
 export async function assertPublicDestination(
   url: URL,
   lookup: LookupAll = dnsLookup,
-): Promise<void> {
+): Promise<LookupAddress[]> {
   const hostname = url.hostname.replace(/^\[|\]$/g, '').toLowerCase();
   if (hostname === 'localhost' || hostname.endsWith('.localhost')) {
     throw new Error('The URL resolves to a private or reserved address.');
@@ -95,4 +95,6 @@ export async function assertPublicDestination(
   if (addresses.length === 0 || addresses.some(({ address }) => isDisallowedAddress(address))) {
     throw new Error('The URL resolves to a private or reserved address.');
   }
+
+  return addresses;
 }

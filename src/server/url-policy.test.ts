@@ -68,6 +68,6 @@ describe('assertPublicDestination', () => {
 
     await expect(
       assertPublicDestination(new URL('https://example.com'), lookup),
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual([{ address: '93.184.216.34', family: 4 }]);
   });
 });

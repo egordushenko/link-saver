@@ -2,7 +2,7 @@ import { join } from 'node:path';
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { findClientDist } from './runtime.js';
+import { findClientDist, getServerHost } from './runtime.js';
 
 describe('findClientDist', () => {
   it('serves a built client whenever its index exists', () => {
@@ -17,3 +17,8 @@ describe('findClientDist', () => {
   });
 });
 
+describe('getServerHost', () => {
+  it('keeps the unauthenticated app on the loopback interface', () => {
+    expect(getServerHost()).toBe('127.0.0.1');
+  });
+});

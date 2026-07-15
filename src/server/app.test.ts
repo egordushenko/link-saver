@@ -31,6 +31,18 @@ describe('link API', () => {
     expect(response.body).toEqual({ links: [] });
   });
 
+  it('rejects requests addressed through a foreign Host header', async () => {
+    const response = await request(createApp({ fetchMetadata, repository }))
+      .get('/api/links')
+      .set('host', 'attacker.example:3000');
+
+    expect(response.status).toBe(403);
+    expect(response.body.error).toEqual({
+      code: 'HOST_NOT_ALLOWED',
+      message: 'This local service only accepts loopback hostnames.',
+    });
+  });
+
   it('creates a link with fetched metadata and returns it in the list', async () => {
     const app = createApp({ fetchMetadata, repository });
 
@@ -79,6 +91,18 @@ describe('link API', () => {
     expect(response.body.error).toEqual({
       code: 'INVALID_JSON',
       message: 'The request body must be valid JSON.',
+    });
+  });
+
+  it('maps oversized JSON bodies to a stable 413 error', async () => {
+    const response = await request(createApp({ fetchMetadata, repository }))
+      .post('/api/links')
+      .send({ url: `https://example.com/${'a'.repeat(11_000)}` });
+
+    expect(response.status).toBe(413);
+    expect(response.body.error).toEqual({
+      code: 'PAYLOAD_TOO_LARGE',
+      message: 'The request body is too large.',
     });
   });
 
