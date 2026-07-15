@@ -69,6 +69,19 @@ describe('link API', () => {
     expect(fetchMetadata).toHaveBeenCalledTimes(1);
   });
 
+  it('maps malformed JSON to a client error', async () => {
+    const response = await request(createApp({ fetchMetadata, repository }))
+      .post('/api/links')
+      .set('content-type', 'application/json')
+      .send('{"url":');
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toEqual({
+      code: 'INVALID_JSON',
+      message: 'The request body must be valid JSON.',
+    });
+  });
+
   it('maps metadata failures to a safe 422 response', async () => {
     fetchMetadata.mockRejectedValue(new Error('socket details that must not leak'));
 

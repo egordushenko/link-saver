@@ -26,6 +26,12 @@ function isSqliteConstraint(error: unknown): boolean {
     && String(error.code).startsWith('SQLITE_CONSTRAINT');
 }
 
+function isMalformedJson(error: unknown): boolean {
+  return error instanceof SyntaxError
+    && 'status' in error
+    && error.status === 400;
+}
+
 export function createApp({ clientDist, fetchMetadata, repository }: AppDependencies) {
   const app = express();
   app.disable('x-powered-by');
@@ -103,7 +109,9 @@ export function createApp({ clientDist, fetchMetadata, repository }: AppDependen
   const errorHandler: ErrorRequestHandler = (error, _request, response, _next) => {
     const knownError = error instanceof HttpError
       ? error
-      : new HttpError(500, 'INTERNAL_ERROR', 'Something went wrong on the server.');
+      : isMalformedJson(error)
+        ? new HttpError(400, 'INVALID_JSON', 'The request body must be valid JSON.')
+        : new HttpError(500, 'INTERNAL_ERROR', 'Something went wrong on the server.');
     const body: ApiErrorResponse = {
       error: { code: knownError.code, message: knownError.message },
     };
@@ -113,4 +121,3 @@ export function createApp({ clientDist, fetchMetadata, repository }: AppDependen
 
   return app;
 }
-
