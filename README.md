@@ -42,6 +42,8 @@ Then open [http://localhost:3000](http://localhost:3000). The database is create
 
 I chose React + Vite for a small, expressive UI and Express + SQLite for a backend that is easy to run and inspect. SQLite provides real persistence without asking the reviewer to provision infrastructure; the server is split into URL policy, metadata fetching, repository, and HTTP layers so each risk can be tested independently.
 
+If the codebase had to grow, I would add an application/use-case layer between Express and the repository, introduce versioned database migrations, and move metadata fetching into a bounded background job. I would keep it as one deployable service until authentication, multi-user workloads, or independent scaling created a concrete reason to split it further.
+
 | Area | Responsibility |
 | --- | --- |
 | `src/client` | React interface, local interaction state, API client, responsive styling |
@@ -101,15 +103,15 @@ Vitest covers URL policy, DNS-pinned and bounded metadata fetching, SQLite persi
 
 ## Part B: existing-code review
 
-The planted bugs, breaking inputs, severity ranking, and corrected implementation are documented in [REVIEW.md](REVIEW.md). The most severe findings are the arbitrary server-side fetch, startup crash, brittle title extraction, and delete route that can never match numeric IDs against string parameters.
+The planted bugs, breaking inputs, severity ranking, and corrected implementation are documented in [REVIEW.md](REVIEW.md). The most severe findings are the arbitrary server-side fetch, startup crash, brittle title extraction, and destructive delete predicate that empties the collection because numeric IDs never equal string route parameters.
 
 ## AI-assisted workflow
 
-The work started from one broad user request and the supplied brief. These are the three distilled directions that did the most work; they are presented as working prompts, not as invented verbatim chat history:
+The original request was broad, so I converted the brief into three operative prompts and used them as phase checkpoints. These are the working prompts that directed the implementation and review:
 
-1. **Requirements and design:** “Read the complete candidate brief, extract every acceptance criterion and ambiguity, compare a few restrained architectures, then lock a responsive visual direction before writing code.”
-2. **Implementation:** “Build the approved React + Express + SQLite design with test-first RED/GREEN cycles; keep title fetching bounded, revalidate redirects, and use separate commits for the base flow and favourite change.”
-3. **Final review:** “Audit the result against the brief, run lint/typecheck/tests/build, review the outbound-fetch trust boundary, verify desktop and mobile UI, and make the public repository readable to a reviewer.”
+1. `Read the complete candidate brief, extract every acceptance criterion and ambiguity, compare a few restrained architectures, then lock a responsive visual direction before writing code.`
+2. `Build the approved React + Express + SQLite design with test-first RED/GREEN cycles; keep title fetching bounded, pin validated DNS results, revalidate redirects, and use separate commits for the base flow and favourite change.`
+3. `Audit the result against the brief, run lint, strict typecheck, tests, and production build; review the outbound-fetch and local-service trust boundaries; verify desktop and mobile UI; then make the public repository readable to a reviewer.`
 
 I used AI as an implementation and review tool, while making the scope, architecture, error semantics, visual direction, and security trade-offs explicitly.
 
@@ -121,7 +123,7 @@ I used AI as an implementation and review tool, while making the scope, architec
 - Add search/tags only after observing a real collection large enough to need them.
 - Deploy a live demo with managed persistence.
 
-I deliberately left out authentication, multi-user sharing, tags, search, live hosting, and a screen-recording placeholder. They are not required for the focused local workflow, and adding them would hide the decisions the exercise is intended to evaluate.
+I deliberately left out authentication, multi-user sharing, tags, search, and live hosting because they are outside the focused local workflow. The required 3-minute screen recording is not linked yet; it remains the only outstanding submission artifact and will be produced separately rather than represented by a placeholder URL.
 
 ## Questions I would have asked before starting
 
