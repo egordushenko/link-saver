@@ -36,6 +36,9 @@ describe('isDisallowedAddress', () => {
     'fc00::1',
     'fe80::1',
     '::ffff:127.0.0.1',
+    '::ffff:7f00:1',
+    '64:ff9b::7f00:1',
+    '2002:7f00:1::',
   ])('blocks %s', (address) => {
     expect(isDisallowedAddress(address)).toBe(true);
   });
@@ -68,4 +71,3 @@ describe('assertPublicDestination', () => {
     ).resolves.toBeUndefined();
   });
 });
-
