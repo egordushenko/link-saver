@@ -1,7 +1,7 @@
 import { type FormEvent, useEffect, useState } from 'react';
 
 import type { Link } from '../shared/link.js';
-import { createLink, deleteLink, getLinks } from './api.js';
+import { createLink, deleteLink, getLinks, setLinkFavorite } from './api.js';
 import { DeleteDialog } from './components/DeleteDialog.js';
 import { LinkItem } from './components/LinkItem.js';
 
@@ -14,6 +14,12 @@ export function App() {
   const [formError, setFormError] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<Link | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [favoriteFilter, setFavoriteFilter] = useState(false);
+  const [updatingFavoriteId, setUpdatingFavoriteId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState('');
+
+  const favoriteCount = links.filter((link) => link.isFavorite).length;
+  const visibleLinks = favoriteFilter ? links.filter((link) => link.isFavorite) : links;
 
   useEffect(() => {
     let active = true;
@@ -58,6 +64,24 @@ export function App() {
       setFormError(error instanceof Error ? error.message : 'The link could not be deleted.');
     } finally {
       setIsDeleting(false);
+    }
+  }
+
+  async function toggleFavorite(link: Link) {
+    const nextFavorite = !link.isFavorite;
+    setActionError('');
+    setUpdatingFavoriteId(link.id);
+    setLinks((current) => current.map((item) => (
+      item.id === link.id ? { ...item, isFavorite: nextFavorite } : item
+    )));
+    try {
+      const updated = await setLinkFavorite(link.id, nextFavorite);
+      setLinks((current) => current.map((item) => (item.id === link.id ? updated : item)));
+    } catch (error) {
+      setLinks((current) => current.map((item) => (item.id === link.id ? link : item)));
+      setActionError(error instanceof Error ? error.message : 'Favourite could not be updated.');
+    } finally {
+      setUpdatingFavoriteId(null);
     }
   }
 
@@ -106,6 +130,26 @@ export function App() {
           <span className="link-count">{links.length} {links.length === 1 ? 'link' : 'links'}</span>
         </div>
 
+        {!isLoading && !loadError && links.length > 0 && (
+          <div className="filters" aria-label="Filter saved links">
+            <button
+              aria-pressed={!favoriteFilter}
+              className={`filter-chip${!favoriteFilter ? ' active' : ''}`}
+              onClick={() => setFavoriteFilter(false)}
+            >
+              All links <span>{links.length}</span>
+            </button>
+            <button
+              aria-pressed={favoriteFilter}
+              className={`filter-chip${favoriteFilter ? ' active' : ''}`}
+              onClick={() => setFavoriteFilter(true)}
+            >
+              <span aria-hidden="true">★</span> Favourites {favoriteCount}
+            </button>
+          </div>
+        )}
+        {actionError && <p className="action-error" role="alert">{actionError}</p>}
+
         {isLoading && <div className="status-card">Loading your links…</div>}
         {!isLoading && loadError && <div className="status-card error-card" role="alert">{loadError}</div>}
         {!isLoading && !loadError && links.length === 0 && (
@@ -115,9 +159,24 @@ export function App() {
             <p>Add your first URL above. Its page title will appear here automatically.</p>
           </div>
         )}
-        {!isLoading && !loadError && links.length > 0 && (
+        {!isLoading && !loadError && links.length > 0 && visibleLinks.length === 0 && (
+          <div className="empty-state compact-empty">
+            <div className="empty-icon star-empty" aria-hidden="true">★</div>
+            <h3>Nothing starred here—yet.</h3>
+            <p>Mark a useful link as a favourite and it will stay one filter away.</p>
+          </div>
+        )}
+        {!isLoading && !loadError && visibleLinks.length > 0 && (
           <ul className="link-list">
-            {links.map((link) => <LinkItem key={link.id} link={link} onDelete={setDeleteTarget} />)}
+            {visibleLinks.map((link) => (
+              <LinkItem
+                isUpdatingFavorite={updatingFavoriteId === link.id}
+                key={link.id}
+                link={link}
+                onDelete={setDeleteTarget}
+                onToggleFavorite={toggleFavorite}
+              />
+            ))}
           </ul>
         )}
       </section>
@@ -138,4 +197,3 @@ export function App() {
     </main>
   );
 }
-

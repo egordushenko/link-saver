@@ -35,3 +35,11 @@ export async function deleteLink(id: string): Promise<void> {
   }
 }
 
+export async function setLinkFavorite(id: string, isFavorite: boolean): Promise<Link> {
+  const response = await fetch(`/api/links/${id}/favorite`, {
+    body: JSON.stringify({ isFavorite }),
+    headers: { 'content-type': 'application/json' },
+    method: 'PATCH',
+  });
+  return (await readJson<LinkResponse>(response)).link;
+}

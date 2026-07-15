@@ -16,6 +16,15 @@ const savedLink: Link = {
   url: 'https://example.com/article',
 };
 
+const favoriteLink: Link = { ...savedLink, isFavorite: true };
+const secondLink: Link = {
+  ...savedLink,
+  id: 'link-2',
+  normalizedUrl: 'https://developer.mozilla.org/',
+  title: 'MDN Web Docs',
+  url: 'https://developer.mozilla.org/',
+};
+
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     headers: { 'content-type': 'application/json' },
@@ -104,5 +113,44 @@ describe('App core link flow', () => {
     });
     expect(fetchMock).toHaveBeenLastCalledWith('/api/links/link-1', { method: 'DELETE' });
   });
-});
 
+  it('marks a link as a favourite', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ links: [savedLink] }))
+      .mockResolvedValueOnce(jsonResponse({ link: favoriteLink }));
+    vi.stubGlobal('fetch', fetchMock);
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole('link', { name: 'Example article' });
+
+    await user.click(screen.getByRole('button', { name: 'Add Example article to favourites' }));
+
+    expect(
+      await screen.findByRole('button', { name: 'Remove Example article from favourites' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Favourites 1' })).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenLastCalledWith('/api/links/link-1/favorite', {
+      body: JSON.stringify({ isFavorite: true }),
+      headers: { 'content-type': 'application/json' },
+      method: 'PATCH',
+    });
+  });
+
+  it('filters favourites and removes an unstarred link from that view', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ links: [favoriteLink, secondLink] }))
+      .mockResolvedValueOnce(jsonResponse({ link: savedLink }));
+    vi.stubGlobal('fetch', fetchMock);
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole('link', { name: 'MDN Web Docs' });
+
+    await user.click(screen.getByRole('button', { name: 'Favourites 1' }));
+    expect(screen.queryByRole('link', { name: 'MDN Web Docs' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Remove Example article from favourites' }));
+
+    expect(await screen.findByText('Nothing starred here—yet.')).toBeInTheDocument();
+  });
+});

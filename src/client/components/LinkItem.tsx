@@ -1,8 +1,10 @@
 import type { Link } from '../../shared/link.js';
 
 type LinkItemProps = {
+  isUpdatingFavorite: boolean;
   link: Link;
   onDelete: (link: Link) => void;
+  onToggleFavorite: (link: Link) => void;
 };
 
 const dateFormatter = new Intl.DateTimeFormat('en', {
@@ -10,7 +12,12 @@ const dateFormatter = new Intl.DateTimeFormat('en', {
   timeStyle: 'short',
 });
 
-export function LinkItem({ link, onDelete }: LinkItemProps) {
+export function LinkItem({
+  isUpdatingFavorite,
+  link,
+  onDelete,
+  onToggleFavorite,
+}: LinkItemProps) {
   const hostname = new URL(link.url).hostname.replace(/^www\./, '');
   const initial = hostname.charAt(0).toUpperCase();
 
@@ -30,6 +37,18 @@ export function LinkItem({ link, onDelete }: LinkItemProps) {
       </div>
       <div className="link-actions">
         <button
+          aria-label={`${link.isFavorite ? 'Remove' : 'Add'} ${link.title} ${link.isFavorite ? 'from' : 'to'} favourites`}
+          aria-pressed={link.isFavorite}
+          className={`icon-button favorite-button${link.isFavorite ? ' is-favorite' : ''}`}
+          disabled={isUpdatingFavorite}
+          onClick={() => onToggleFavorite(link)}
+          title={link.isFavorite ? 'Remove from favourites' : 'Add to favourites'}
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3Z" />
+          </svg>
+        </button>
+        <button
           aria-label={`Delete ${link.title}`}
           className="icon-button delete-button"
           onClick={() => onDelete(link)}
@@ -43,4 +62,3 @@ export function LinkItem({ link, onDelete }: LinkItemProps) {
     </li>
   );
 }
-
