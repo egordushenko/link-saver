@@ -3,10 +3,11 @@ import { resolve } from 'node:path';
 import { createApp } from './app.js';
 import { createLinkRepository } from './link-repository.js';
 import { fetchPageMetadata } from './metadata.js';
+import { findClientDist } from './runtime.js';
 
 const port = Number(process.env.PORT ?? 3000);
 const databasePath = process.env.DATABASE_PATH ?? resolve('data/links.db');
-const clientDist = process.env.NODE_ENV === 'production' ? resolve('dist/client') : undefined;
+const clientDist = findClientDist(process.cwd());
 const repository = createLinkRepository(databasePath);
 const app = createApp({ clientDist, fetchMetadata: fetchPageMetadata, repository });
 
@@ -23,4 +24,3 @@ function shutdown(): void {
 
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
-
